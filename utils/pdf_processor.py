@@ -131,42 +131,69 @@ class PDFTranslator:
                     # 첫 번째 span의 폰트 정보 가져오기
                     first_span = block["lines"][0]["spans"][0] if block.get("lines") and block["lines"][0].get("spans") else None
 
+                    # 폰트 크기와 색상 정보
                     if first_span:
-                        font_name = first_span.get("font", "helv")
                         font_size = first_span.get("size", 11)
                         font_color = first_span.get("color", 0)  # RGB as integer
                     else:
-                        font_name = "helv"
                         font_size = 11
                         font_color = 0
+
+                    # 안전한 기본 폰트 사용 (PyMuPDF 내장 폰트)
+                    # helv: Helvetica, times: Times, courier: Courier
+                    safe_fonts = ["helv", "times", "courier", "symbol", "zapfdingbats"]
+                    font_name = "helv"  # 기본 폰트
 
                     # 원본 텍스트 영역에 흰색 사각형 그리기 (텍스트 지우기)
                     page.draw_rect(bbox, color=(1, 1, 1), fill=(1, 1, 1))
 
                     # 번역된 텍스트 삽입
                     # 텍스트가 영역에 맞도록 자동 조정
-                    rc = page.insert_textbox(
-                        bbox,
-                        translated_text,
-                        fontname=font_name,
-                        fontsize=font_size,
-                        color=self._int_to_rgb(font_color),
-                        align=fitz.TEXT_ALIGN_LEFT
-                    )
+                    try:
+                        rc = page.insert_textbox(
+                            bbox,
+                            translated_text,
+                            fontname=font_name,
+                            fontsize=font_size,
+                            color=self._int_to_rgb(font_color),
+                            align=fitz.TEXT_ALIGN_LEFT
+                        )
+                    except Exception as font_error:
+                        print(f"Font error, using default: {font_error}")
+                        # Fallback: 기본 폰트와 크기로 재시도
+                        rc = page.insert_textbox(
+                            bbox,
+                            translated_text,
+                            fontname="helv",
+                            fontsize=11,
+                            color=(0, 0, 0),
+                            align=fitz.TEXT_ALIGN_LEFT
+                        )
 
                     # 텍스트가 영역을 초과하면 폰트 크기 줄이기
                     if rc < 0:
                         # 폰트 크기를 줄여가며 재시도
                         for smaller_size in range(int(font_size) - 1, 6, -1):
                             page.draw_rect(bbox, color=(1, 1, 1), fill=(1, 1, 1))
-                            rc = page.insert_textbox(
-                                bbox,
-                                translated_text,
-                                fontname=font_name,
-                                fontsize=smaller_size,
-                                color=self._int_to_rgb(font_color),
-                                align=fitz.TEXT_ALIGN_LEFT
-                            )
+                            try:
+                                rc = page.insert_textbox(
+                                    bbox,
+                                    translated_text,
+                                    fontname="helv",  # 안전한 기본 폰트 사용
+                                    fontsize=smaller_size,
+                                    color=self._int_to_rgb(font_color),
+                                    align=fitz.TEXT_ALIGN_LEFT
+                                )
+                            except:
+                                # 최후의 수단: 최소한의 설정으로 시도
+                                rc = page.insert_textbox(
+                                    bbox,
+                                    translated_text,
+                                    fontname="helv",
+                                    fontsize=smaller_size,
+                                    color=(0, 0, 0),
+                                    align=fitz.TEXT_ALIGN_LEFT
+                                )
                             if rc >= 0:
                                 break
 

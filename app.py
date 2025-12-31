@@ -5,8 +5,12 @@ import streamlit as st
 import os
 import tempfile
 from pathlib import Path
+from dotenv import load_dotenv
 from utils.translator import TextTranslator
 from utils.pdf_processor import PDFTranslator
+
+# .env 파일 로드
+load_dotenv()
 
 
 # 페이지 설정
